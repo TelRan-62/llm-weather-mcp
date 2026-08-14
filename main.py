@@ -2,7 +2,7 @@ import asyncio
 import os
 from ollama import AsyncClient
 from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 
 from mcp_bridge import mcp_tool_to_ollama, tool_result_text
 from system_content import SYSTEM_CONTENT
@@ -34,7 +34,7 @@ async def chat_loop(session, ollama_tools):
             'content': SYSTEM_CONTENT
         }
     ]
-    print('phi-3 + MCP chat. Type "exit" to quit.')
+    print('qwen2.5:3b + MCP chat. Type "exit" to quit.')
     while True:
         user_input = await asyncio.to_thread(input, 'You: ')
         if user_input == 'exit':
@@ -44,8 +44,8 @@ async def chat_loop(session, ollama_tools):
             'role': 'user',
             'content': user_input
         })
-        response = await client.chat(model=MODEL_NAME, messages=messages, tools=ollama_tools)
-        messages.append(response.message)
+        response = await client.chat(model=MODEL_NAME, messages=messages, tools=ollama_tools, stream=False)
+        messages.append(response.message.model_dump(exclude_none=True))
         if response.message.tool_calls:
             for tool_call in response.message.tool_calls:
                 result = await session.call_tool(tool_call.function.name, tool_call.function.arguments)
@@ -67,7 +67,7 @@ async def chat_loop(session, ollama_tools):
 
 async def main():
     try:
-        async with streamablehttp_client(MCP_SERVER_URL) as (read, write, _):
+        async with streamable_http_client(MCP_SERVER_URL) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 mcp_tools = (await session.list_tools()).tools
